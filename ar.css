@@ -1227,7 +1227,8 @@ body.compact .melds:has(.empty-note) { padding-bottom: 0; }
 /* the cards behind are bare outlines; the front card's number sits over a bigger planet */
 body.compact #sets .meld .mc:not(:last-child) .acard > * { visibility: hidden; }
 body.compact #sets .mc .acard .art { width: calc(92cqw * var(--f, 1)); height: calc(92cqw * var(--f, 1)); left: 50%; top: 58%; }
-body.compact #sets .mc .acard .idx .num { font-size: 46cqw; }
+body.compact #sets .mc .acard .idx { left: 3cqw; top: 0; }
+body.compact #sets .mc .acard .idx .num { font-size: 72cqw; line-height: 1; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 3px #000; }
 /* Phones: opponents' scores live in the sets column, not over their hands */
 body.compact #opps .seat-head .score { display: none; }
 /* Question boxes can be dragged by any bare part of them */
@@ -1245,6 +1246,6 @@ body.compact #opps .seat-head .score { display: none; }
 /* Phones: names on the board and on your cards in pure white; bigger on your cards */
 body.compact .tile .tile-name { color: #fff; font-size: var(--tile-font); letter-spacing: 0.04em; }
 body.compact #hand .acard.body .cname { color: #fff; font-size: 12.5cqw; top: 8cqw; }
-/* Phones: the bare probe, outlined so it reads over the hidden cards */
-body.compact #probe { background: none !important; box-shadow: none !important; transform: scale(1.75); }
-body.compact #probe img { filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 2px #000) drop-shadow(0 0 5px rgba(111, 211, 255, 0.8)); }
+/* Phones: the bare probe on its black disc, so it reads over the hidden cards */
+body.compact #probe { background: radial-gradient(circle, #05080f 0%, #05080f 68%, transparent 70%) !important; transform: scale(1.5); }
+body.compact #probe img { width: 84% !important; height: 84% !important; filter: drop-shadow(0 0 2px rgba(111, 211, 255, 0.7)); }

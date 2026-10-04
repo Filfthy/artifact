@@ -721,7 +721,7 @@ class Controller {
     const left = Math.round(r.left - tr.left + (r.width - this.L.tok) / 2);
     if (animate && left !== prev) probe.classList.toggle("going-in", left < prev);
     probe.style.left = left + "px";
-    probe.style.top = Math.round(r.top - tr.top + this.L.spaceH - this.L.tok * (this.L.compact ? 0.3 : 0.84)) + "px";   // phones: it hangs mostly below the space
+    probe.style.top = Math.round(r.top - tr.top + this.L.spaceH - this.L.tok * (this.L.compact ? 0.05 : 0.84)) + "px";   // phones: it sits just below the space
     if (!animate) { probe.getBoundingClientRect(); probe.style.transition = ""; }
   }
 
