@@ -1122,10 +1122,10 @@ body.overlay-active #btn-settings, body:has(#splash:not(.gone)) #btn-settings { 
 
 /* ===== Phones on their side (body.compact, set by layout) ===== */
 @media (hover: none) { #hand .acard:hover:not(.sel) { --lift: 0px; } }
-body.compact #side-logo, body.compact #game-log { display: none !important; }
+body.compact #side-logo { display: none !important; }
 /* the hand dips off the bottom edge; the top-left index is what you read */
 body.compact #hand .acard { bottom: calc(var(--ch) * -0.16); }
-body.compact #hand .acard.sel { --lift: -30%; }
+body.compact #hand .acard.sel { --lift: -22%; }
 /* the prompt and buttons at the foot of the right-hand column */
 body.compact #actions { justify-content: flex-end; gap: 8px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
 body.compact #status { line-height: 1.3; }
@@ -1169,3 +1169,36 @@ body.compact #opps .seat-head { max-width: 100%; overflow: hidden; }
   .ho-name, .ho-pts { line-height: 1.15; }
 }
 body.compact #coach { box-sizing: border-box; }
+/* Phones: the prompt sits in a strip between the board and the hand, so the
+   right-hand column keeps its room for everyone's sets */
+body.compact #status { position: fixed; left: var(--st-l); top: var(--st-t); width: var(--st-w); height: var(--st-h); display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.2; font-size: 14px; pointer-events: none; }
+body.compact #status:empty { display: none; }
+body.compact #actions { border-top: none; padding-top: 0; }
+/* Phones: the log slides up over the right-hand column from a Log button */
+#log-toggle { display: none; }
+body.compact #log-toggle { display: block; position: absolute; z-index: 7; margin: 0; padding: 0; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 6px; color: var(--sky-hi); font: 600 15px var(--font); letter-spacing: 0.06em; }
+body.overlay-active #log-toggle { visibility: hidden; }
+body.compact #game-log { display: flex; z-index: 6; border-top: none; padding: 6px 4px 6px 8px; background: #02040a; border: 1px solid rgba(111, 211, 255, 0.35); border-radius: 8px;
+  transform: translateY(110%); opacity: 0; pointer-events: none; transition: transform 0.25s ease, opacity 0.25s ease; }
+body.compact.show-log #game-log { transform: none; opacity: 1; pointer-events: auto; }
+body.compact #game-log .log-title { display: none; }
+body.compact .log-list { font-size: 14px; }
+/* Phones: one line per opponent, the prompt in a strip under them, bigger type */
+body.compact #opps .pseat { display: flex; align-items: flex-start; }
+body.compact #opps .seat-head { font-size: 15px; gap: 0.4em; }
+body.compact #opps .seat-head .nm { min-width: 0; flex: 0 1 auto; }
+body.compact #opps .seat-head .count { font-size: 13px; flex: none; }
+body.compact #status { top: var(--st-t); font-size: 16px; line-height: 1.2; }
+body.compact #sets .seat-head { font-size: 15px; }
+body.compact #sets .hand-pts { font-size: 13px; }
+/* Phones: a shorter board; the probe hangs half off the foot of its space */
+body.compact .tile .space { padding-bottom: calc(var(--tok) * 0.45 + 2px); gap: 1px; }
+/* Phones: the planet's name, small, across the top of each card in your hand */
+body.compact #hand .acard.body .cname { display: block; top: 3cqw; bottom: auto; left: 5cqw; right: auto; text-align: left; white-space: nowrap; font-size: 13cqw; font-weight: 600; letter-spacing: 0.02em; color: #dfe6ff; text-shadow: 0 0 3px #000; }
+body.compact #hand .acard.body .idx { top: 17cqw; }
+/* Phones: the open log covers the whole display until you shut it */
+body.compact.show-log #game-log { position: fixed; left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; z-index: 26000; border: none; border-radius: 0; padding: 14px 24px 64px; box-sizing: border-box; }
+body.compact.show-log #game-log .log-title { display: block; text-align: center; font-size: 13px; margin-bottom: 8px; }
+body.compact.show-log .log-list { font-size: 16px; line-height: 1.45; width: 100%; max-width: 760px; margin: 0 auto; }
+body.compact.show-log #log-toggle { position: fixed; z-index: 26001; top: auto !important; bottom: 10px; left: 50% !important; width: 220px !important; height: 42px !important; transform: translateX(-50%); background: #0b1430; border-color: var(--sky); }
+body.compact.show-log #controls, body.compact.show-log #btn-hint-top { display: none !important; }

@@ -320,6 +320,12 @@ class Controller {
     this.bindQuit();
     this.bindStart();
     this.bindKeys();
+    document.getElementById("log-toggle").addEventListener("click", e => {
+      const open = document.body.classList.toggle("show-log");
+      e.currentTarget.innerHTML = open ? "Log ▼" : "Log ▲";
+      const list = document.querySelector("#game-log .log-list");
+      if (open && list) list.scrollTop = list.scrollHeight;
+    });
     this.bindSettings();
     this.hookLog();
     const stats = document.getElementById("stats");
@@ -445,9 +451,10 @@ class Controller {
     const ctrl = document.getElementById("controls");
     const cr = ctrl ? ctrl.getBoundingClientRect() : { height: 40 };
     const ctrlH = cr.height + 12;
-    // Phones on their side: a compact table. The prompt and buttons move to
-    // the foot of the right-hand column, the logo and log go, and the cards
-    // grow so they're big enough to tap.
+    // Phones on their side: a compact table. Opponents shrink to one line
+    // beside the corner buttons with the turn prompt under them, the buttons
+    // move to the foot of the right-hand column, Sets and Log share that
+    // column as tabs, and the cards grow so they're big enough to tap.
     const compact = W > H && H <= 500;
     document.body.classList.toggle("compact", compact);
     // Hint sits just left of the corner buttons.
@@ -457,17 +464,17 @@ class Controller {
 
     const setsW = compact ? Math.round(Math.max(170, W * 0.2)) : Math.round(Math.max(200, W * 0.21));
     const leftW = hasLeft ? Math.round(W * 0.11) : 0;
-    const topH = Math.round(H * (compact ? 0.17 : W / H < 1.6 ? 0.17 : 0.2));
-    const handH = compact ? Math.round(H * 0.25) : Math.round(H * 0.21);
+    const topH = compact ? Math.round(ctrlH) : Math.round(H * (W / H < 1.6 ? 0.17 : 0.2));
+    const handH = compact ? Math.round(H * 0.28) : Math.round(H * 0.21);
     const seatFont = Math.round(Math.max(11, Math.min(16, H * 0.022)));
     const headH = Math.round(seatFont * 1.7);
 
     // Cards: the hand is a fan along the bottom; deck and discard sit small
     // in the bottom-left corner.
-    let ch = Math.round(H * (compact ? 0.25 : 0.15)), cw = Math.round(ch / 1.5);
+    let ch = Math.round(H * (compact ? 0.28 : 0.15)), cw = Math.round(ch / 1.5);
     const pw = Math.max(34, Math.round(cw * (compact ? 0.82 : 1.05)));
     const pilesW = 2 * pw + 3 * pad;
-    const handX = pilesW + 2 * pad, handW = W - setsW - handX - 2 * pad;
+    const handX = pilesW + 2 * pad, handW = W - setsW - handX - 2 * pad - (compact ? Math.round(cw * 0.35) : 0);   // phones: the tilted end card clears the buttons
 
     // Board: what's left in the middle.
     const bx0 = leftW + 2 * pad, bx1 = W - setsW - 2 * pad;
@@ -476,20 +483,25 @@ class Controller {
     // the hand dips off the bottom edge.)
     const dockH = compact ? Math.round(H * 0.4) : Math.round(Math.max(64, H * 0.085));
     const dockTop = compact ? H - dockH - pad : H - handH - Math.round(ch * 0.32) - dockH;
-    const by0 = topH + pad, by1 = compact ? H - Math.round(ch * 1.02) - pad : dockTop - pad;
+    // Phones: the turn prompt gets its own strip under the opponents.
+    const stripH = compact ? 42 : 0;
+    const by0 = topH + stripH + pad, by1 = compact ? H - Math.round(ch * 0.98) - pad : dockTop - pad;
     const tw = Math.min((bx1 - bx0) / N_BODIES, 118);
-    const fill = compact ? 0.97 : 0.74, tall = compact ? 3.4 : W / H < 1.6 ? 3.1 : 2.4;   // phones and tablets: taller, narrower spaces
+    const fill = compact ? 0.97 : 0.74, tall = compact ? 2.15 : W / H < 1.6 ? 3.1 : 2.4;   // phones and tablets: taller, narrower spaces
     // Orbit style: the planets sit on a gentle arc, so the outer ones dip lower.
-    const arcH = BOARD_STYLE === "orbit" ? Math.round(Math.min(tw * tall, (by1 - by0) * fill) * (compact ? 0.12 : 0.16)) : 0;
-    const trackH = Math.round(Math.min(tw * tall, (by1 - by0) * fill)) - arcH;
+    // (Phones: only as tall as the name, picture and number need.)
+    const tf0 = Math.round(Math.max(9, Math.min(14, tw * 0.13)));
+    const want = compact ? tw * 1.8 + tf0 * 3.5 + 12 : tw * tall;
+    const arcH = BOARD_STYLE === "orbit" ? Math.round(Math.min(want, (by1 - by0) * fill) * (compact ? 0.12 : 0.16)) : 0;
+    const trackH = Math.round(Math.min(want, (by1 - by0) * fill)) - arcH;
     const boardW = Math.round(tw * N_BODIES), boardH = trackH + arcH;
     const board = { left: Math.round((bx0 + bx1 - boardW) / 2), top: Math.round(by0 + Math.max(0, (by1 - by0 - boardH) * 0.6)), width: boardW, height: boardH };
     const sw = Math.round(Math.min(tw * 0.78, Math.max(pw, tw * 0.6)));   // hidden cards: at least as wide as the deck
     const tipH = Math.round(sw * 0.62);                              // how much of them shows
     const spaceH = trackH - tipH;                                    // the board itself
-    const tok = Math.round(Math.min(tw * 0.66, spaceH * 0.38));        // the probe token
+    const tok = Math.round(compact ? Math.min(tw * 0.56, spaceH * 0.32) : Math.min(tw * 0.66, spaceH * 0.38));        // the probe token
     const tf = Math.round(Math.max(9, Math.min(14, tw * 0.13)));
-    const pl = Math.round(Math.min(tw * 0.82, spaceH - tok * 0.78 - tf * 3.8 - 14));   // the token overlaps the plinth's edge
+    const pl = Math.round(Math.min(tw * 0.82, spaceH - tok * (compact ? 0.45 : 0.78) - tf * (compact ? 3.5 : 3.8) - (compact ? 8 : 14)));   // the token overlaps the plinth's edge
 
     // Opponents
     const topX0 = bx0, topX1 = compact ? Math.min(W - setsW - 2 * pad, ctrlLeft - hintW - 3 * pad) : W - setsW - 2 * pad;
@@ -506,13 +518,16 @@ class Controller {
     const setsTop = ctrlH + logoH + 2 * pad;
     // Bottom of the right column: the game log.
     const logH = Math.round(Math.max(140, H * 0.3));
+    const logBtnH = compact ? 32 : 0;
     const sets = compact
       ? { left: W - setsW - pad, top: ctrlH, width: setsW, height: dockTop - ctrlH - pad }
       : { left: W - setsW - pad, top: setsTop, width: setsW, height: H - setsTop - logH - 2 * pad };
-    const logBox = { left: W - setsW - pad, top: H - logH - pad, width: setsW, height: logH };
+    // (Phones: the log slides up over the column from a Log button at its foot.)
+    const logBox = compact ? { left: W - setsW - pad, top: ctrlH, width: setsW, height: H - ctrlH - logBtnH - 2 * pad } : { left: W - setsW - pad, top: H - logH - pad, width: setsW, height: logH };
 
     const set = (k, v) => r.setProperty(k, typeof v === "number" ? v + "px" : v);
     set("--pad", pad); set("--gap", gap);
+    set("--st-l", bx0); set("--st-t", topH); set("--st-w", bx1 - bx0); set("--st-h", stripH);
     set("--cw", cw); set("--ch", ch); set("--tw", tw); set("--pl", pl); set("--sw", sw); set("--pw", pw);
     set("--track-h", trackH); set("--hand-h", handH); set("--arc", arcH);
     document.body.classList.toggle("board-orbit", BOARD_STYLE === "orbit");
@@ -532,6 +547,7 @@ class Controller {
     place(this.dom.sets, sets);
     place(document.getElementById("game-log"), logBox);
     place(document.getElementById("side-logo"), logo);
+    place(document.getElementById("log-toggle"), { left: W - setsW - pad, top: H - logBtnH - pad, width: setsW, height: logBtnH });
     if (hb) { hb.style.left = "auto"; hb.style.right = Math.round(W - ctrlLeft + 8) + "px"; hb.style.top = (ctrl ? Math.round(cr.top) : 4) + "px"; hb.style.height = Math.round(cr.height || 34) + "px"; }
     const act = document.getElementById("actions");
     place(act, compact
@@ -540,7 +556,7 @@ class Controller {
     // On a phone the dock grows upwards from the bottom with its text, and the
     // sets panel above it gives way.
     if (act) {
-      if (compact) Object.assign(act.style, { top: "auto", bottom: pad + "px", height: "auto", maxHeight: Math.round(H * 0.62) + "px" });
+      if (compact) Object.assign(act.style, { top: "auto", bottom: (logBtnH + 2 * pad) + "px", height: "auto", maxHeight: Math.round(H * 0.62) + "px" });
       else act.style.bottom = act.style.maxHeight = "";
       if (!this.dockWatch && window.ResizeObserver) {
         this.dockWatch = new ResizeObserver(() => this.fitDock());
@@ -698,7 +714,7 @@ class Controller {
     const left = Math.round(r.left - tr.left + (r.width - this.L.tok) / 2);
     if (animate && left !== prev) probe.classList.toggle("going-in", left < prev);
     probe.style.left = left + "px";
-    probe.style.top = Math.round(r.top - tr.top + this.L.spaceH - this.L.tok * 0.84) + "px";
+    probe.style.top = Math.round(r.top - tr.top + this.L.spaceH - this.L.tok * (this.L.compact ? 0.5 : 0.84)) + "px";   // phones: it hangs half off the space
     if (!animate) { probe.getBoundingClientRect(); probe.style.transition = ""; }
   }
 
@@ -787,7 +803,9 @@ class Controller {
       const b = L.boxes[where];
       Object.assign(s.style, { left: b.left + "px", top: b.top + "px", width: b.width + "px", height: b.height + "px" });
       s.innerHTML = this.seatHead(p);
-      s.appendChild(this.fanEl(g.hands ? g.hands[p].length : 0));
+      const nCards = g.hands ? g.hands[p].length : 0;
+      if (L.compact) s.querySelector(".seat-head").insertAdjacentHTML("beforeend", `<span class="count" title="Cards in hand">${nCards}</span>`);
+      else s.appendChild(this.fanEl(nCards));
       if (this.doing[p]) {
         const d = document.createElement("div");
         d.className = "doing-bubble";
