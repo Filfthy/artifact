@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Artifact</title>
+  <meta name="description" content="Artifact: a rummy card game across the Solar System for 2 to 4 players. Collect telemetry sets, steer the shared probe, and hunt for two alien artifacts hidden among the planets. Play free in your browser.">
+  <meta name="author" content="BugVictim">
+  <meta name="theme-color" content="#05070f">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="bugvictim.svg">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Artifact">
+  <meta property="og:description" content="A rummy card game across the Solar System. Steer the probe, find the artifacts.">
+  <link rel="stylesheet" href="./gw.css?v=97">
+  <link rel="stylesheet" href="./oh.css?v=97">
+  <link rel="stylesheet" href="./ar.css?v=97">
+</head>
+<body class="table-stars">
+  <div id="game">
+    <div id="opps"></div>
+    <div id="board">
+      <div id="track"></div>
+    </div>
+    <div id="piles">
+      <div class="pile" id="deck-pile"><div class="pile-label">Deck</div></div>
+      <div class="pile" id="discard-pile"><div class="pile-label">Discard</div></div>
+    </div>
+    <img id="side-logo" src="img/logo.webp" alt="Artifact" draggable="false">
+    <div id="sets"></div>
+    <div id="game-log"><div class="log-title">Log</div><div class="log-list"></div></div>
+    <div id="actions">
+      <div id="status"></div>
+      <div id="action-buttons"></div>
+    </div>
+    <div id="hand"></div>
+
+  </div>
+
+  <!-- Peek / probe / choice popups -->
+  <div id="popup" style="display:none;"><div class="popup-panel"><div class="popup-body"></div><div class="popup-buttons"></div></div></div>
+
+  <button id="btn-hint-top" type="button" title="Hint (H)">Hint</button>
+  <div id="controls">
+      <button id="btn-quit" type="button" class="icon-btn" aria-label="Quit game" title="Quit game">✕</button>
+      <button id="btn-settings" type="button" class="icon-btn" aria-label="Settings" title="Settings"></button>
+      <button id="btn-music" type="button" class="icon-btn" aria-label="Toggle music" title="Music"></button>
+      <button id="btn-sound" type="button" class="icon-btn" aria-label="Toggle sound" title="Sound">🔇</button>
+      <button id="btn-fullscreen" type="button" class="icon-btn" aria-label="Toggle fullscreen" title="Fullscreen">⛶</button>
+  </div>
+
+<!-- SPLASH -->
+<div id="splash" role="button" tabindex="0" aria-label="Click to start">
+  <div class="alogo splash-logo-img" role="img" aria-label="Artifact"><img class="l l-blue" src="img/logo-blue.webp" alt="" draggable="false"><img class="l l-blue sweep" src="img/logo-blue.webp" alt="" draggable="false"><img class="l l-gold" src="img/logo-gold.webp" alt="" draggable="false"><img class="l l-gold glint" src="img/logo-gold.webp" alt="" draggable="false"><img class="l l-white" src="img/logo-white.webp" alt="" draggable="false"></div>
+  <div class="logo-subtitle splash-subtitle">Something is waiting out among the planets</div>
+  <img src="bugvictim.svg" alt="BugVictim" class="splash-logo">
+  <div class="splash-credit">© BugVictim 2026</div>
+  <div class="splash-start">Click to start</div>
+  <script>if (matchMedia("(pointer: coarse)").matches) document.currentScript.previousElementSibling.textContent = "Tap to start";</script>
+</div>
+
+<div id="rotate-prompt" aria-live="polite">
+  <div class="rotate-phone">📱</div>
+  <div class="rotate-title">Please turn your phone sideways</div>
+  <div class="rotate-text">Artifact is played in landscape.</div>
+</div>
+
+<div id="quit-confirm" class="modal-shade" style="display:none;">
+  <div class="tut-offer-panel">
+    <div class="tut-offer-title">Quit this game?</div>
+    <div class="tut-offer-text">The scores so far will be lost.</div>
+    <div class="tut-offer-buttons">
+      <button type="button" id="btn-quit-no">Keep playing</button>
+      <button type="button" id="btn-quit-yes">Quit</button>
+    </div>
+  </div>
+</div>
+
+<div id="tut-offer" style="display:none;">
+  <div class="tut-offer-panel">
+    <div class="tut-offer-title">New to Artifact?</div>
+    <div class="tut-offer-text">Learn to play in a short guided tutorial.</div>
+    <div class="tut-offer-buttons">
+      <button type="button" id="btn-offer-skip">No thanks</button>
+      <button type="button" id="btn-offer-tutorial">Play the tutorial</button>
+    </div>
+  </div>
+</div>
+
+<!-- END OF A HAND -->
+<div id="hand-over" class="modal-shade" style="display:none;">
+  <div class="tut-offer-panel hand-over-panel">
+    <div class="tut-offer-title" id="ho-title"></div>
+    <div class="tut-offer-text" id="ho-sub"></div>
+    <div id="ho-table"></div>
+    <div class="tut-offer-buttons"><button type="button" id="btn-ho-next">Next hand</button></div>
+  </div>
+</div>
+
+<!-- CREDITS -->
+<div id="credits" class="modal-shade" style="display:none;">
+  <div class="tut-offer-panel credits-panel">
+    <div class="tut-offer-title">Credits</div>
+    <div class="credits-body">
+      <h4>Game</h4>
+      <p>Artifact by <b>BugVictim</b> © 2026.</p>
+      <p>Based on the rules of <b>Mystery Rummy: Bonnie &amp; Clyde</b> by Mike Fitzgerald (Rio Grande Games).</p>
+      <h4>Planets, probe and Mission Control</h4>
+      <p>NASA / JPL / JHUAPL: MESSENGER, Mariner 10, Apollo 17, Viking, Dawn, Cassini, Voyager 2 and New Horizons images; Goldstone Deep Space Communications Complex. Public domain.</p>
+      <h4>Backgrounds</h4>
+      <p>Starfield: generated in the game.</p>
+      <p>The Milky Way panorama and galactic core: ESO/S. Brunier, licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</p>
+      <p>Cosmic Cliffs, Carina Nebula; Pillars of Creation; Tarantula Nebula (James Webb): NASA, ESA, CSA, STScI (Pillars: J. DePasquale, A. Koekemoer, A. Pagan; Tarantula: Webb ERO Production Team). Public domain.</p>
+      <p>Orion Nebula (Hubble): NASA, ESA, M. Robberto (STScI/ESA) and the Hubble Orion Treasury Project Team. Public domain.</p>
+      <p>Westerlund 2 (Hubble 25th anniversary): NASA, ESA, the Hubble Heritage Team (STScI/AURA), A. Nota (ESA/STScI) and the Westerlund 2 Science Team. Public domain.</p>
+      <p>Hubble Ultra Deep Field: NASA and ESA. Public domain.</p>
+      <h4>Type</h4>
+      <p>Exo 2 by Natanael Gama, SIL Open Font License (included as fonts/OFL.txt).</p>
+      <h4>Music</h4>
+      <p>Ambient music generated live in the game.</p>
+    </div>
+    <div class="tut-offer-buttons"><button type="button" id="btn-credits-close">Close</button></div>
+  </div>
+</div>
+
+<!-- IN-GAME SETTINGS -->
+<div id="settings" class="modal-shade" style="display:none;">
+  <div class="tut-offer-panel settings-panel">
+    <div class="tut-offer-title">Settings</div>
+    <div class="settings-body"></div>
+    <div class="tut-offer-buttons"><button type="button" id="btn-settings-close">Done</button></div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div id="stats" class="modal-shade" style="display:none;">
+  <div class="tut-offer-panel credits-panel">
+    <div class="tut-offer-title">Your stats</div>
+    <div class="stats-grid" id="stats-grid"></div>
+    <div class="tut-offer-buttons">
+      <button type="button" id="btn-stats-reset" class="quiet-btn">Reset</button>
+      <button type="button" id="btn-stats-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- START OVERLAY -->
+<div id="start-overlay">
+  <div id="start-panel">
+    <div class="start-panel-header">
+      <div class="start-header">
+        <div class="alogo start-logo-img" role="img" aria-label="Artifact"><img class="l l-blue" src="img/logo-blue.webp" alt="" draggable="false"><img class="l l-blue sweep" src="img/logo-blue.webp" alt="" draggable="false"><img class="l l-gold" src="img/logo-gold.webp" alt="" draggable="false"><img class="l l-gold glint" src="img/logo-gold.webp" alt="" draggable="false"><img class="l l-white" src="img/logo-white.webp" alt="" draggable="false"></div>
+        <div class="ar-aka">a rummy game across the Solar System</div>
+      </div>
+      <div class="start-logo-row start-credit-line">© BugVictim 2026</div>
+    </div>
+
+    <div class="start-panel-content">
+    <div class="start-body">
+      <div class="start-field-row">
+        <label for="player-name-input">Your name</label>
+        <input id="player-name-input" type="text" value="Player" placeholder="Player" maxlength="20">
+      </div>
+      <div class="tab-bar" role="tablist">
+        <button type="button" class="tab-btn active" data-tab="game">Game</button>
+        <button type="button" class="tab-btn" data-tab="rules">Rules</button>
+        <button type="button" class="tab-btn" data-tab="look">Look &amp; feel</button>
+      </div>
+
+      <div class="tab-pane active" data-pane="game">
+        <div class="opt-row">
+          <div class="opt-label">Players</div>
+          <div class="seg" role="radiogroup"><label><input type="radio" name="players" value="2" checked><span>2</span></label><label><input type="radio" name="players" value="3"><span>3</span></label><label><input type="radio" name="players" value="4"><span>4</span></label></div>
+        </div>
+        <div class="opt-row">
+          <div class="opt-label">Opponents</div>
+          <div class="seg" role="radiogroup"><label title="Easy"><input type="radio" name="opponent" value="easy" checked><span>Cadets</span></label><label title="Medium"><input type="radio" name="opponent" value="medium"><span>Officers</span></label><label title="Hard: plans every turn"><input type="radio" name="opponent" value="hard"><span>Commanders</span></label></div>
+        </div>
+        <div class="opt-row">
+          <div class="opt-label">Play to</div>
+          <div class="seg" role="radiogroup"><label><input type="radio" name="target" value="100" checked><span>100 points</span></label><label><input type="radio" name="target" value="200"><span>200 points</span></label></div>
+        </div>
+        <div class="opt-row opt-row-end">
+          <button id="btn-stats" type="button">Stats</button>
+        </div>
+        <div class="round-summary-line" id="match-line"></div>
+      </div>
+
+      <div class="tab-pane" data-pane="rules">
+        <div class="opt-row" id="helpers-row">
+          <div class="opt-label">Helpers</div>
+          <div class="seg" role="radiogroup"><label title="Highlight cards you can play"><input type="radio" name="helpers" value="on" checked><span>Highlight plays</span></label><label><input type="radio" name="helpers" value="off"><span>Off</span></label></div>
+        </div>
+        <div class="opt-row opt-row-end">
+          <button id="btn-instructions" type="button">How to play</button>
+        </div>
+      </div>
+
+      <div class="tab-pane" data-pane="look">
+        <div class="opt-row">
+          <div class="opt-label">Table</div>
+          <div class="seg seg-tables" role="radiogroup">
+            <label title="A generated starfield that gently twinkles"><input type="radio" name="table" value="stars" checked><span class="sw sw-stars">Starfield</span></label>
+            <label title="The Milky Way panorama"><input type="radio" name="table" value="space"><span class="sw sw-space">Milky Way</span></label>
+            <label title="The Milky Way, galactic core"><input type="radio" name="table" value="core"><span class="sw sw-core">Galactic core</span></label>
+            <label title="Cosmic Cliffs, Carina Nebula (James Webb)"><input type="radio" name="table" value="cliffs"><span class="sw sw-cliffs">Cosmic Cliffs</span></label>
+            <label title="Pillars of Creation (James Webb)"><input type="radio" name="table" value="pillars"><span class="sw sw-pillars">Pillars</span></label>
+            <label title="Orion Nebula (Hubble)"><input type="radio" name="table" value="orion"><span class="sw sw-orion">Orion</span></label>
+            <label title="Tarantula Nebula (James Webb)"><input type="radio" name="table" value="tarantula"><span class="sw sw-tarantula">Tarantula</span></label>
+            <label title="Westerlund 2 (Hubble 25th anniversary)"><input type="radio" name="table" value="westerlund"><span class="sw sw-westerlund">Westerlund 2</span></label>
+            <label title="Hubble Ultra Deep Field"><input type="radio" name="table" value="deepfield"><span class="sw sw-deepfield">Deep Field</span></label>
+            <label title="Green baize"><input type="radio" name="table" value="green"><span class="sw sw-green">Baize</span></label>
+            <label title="Walnut table"><input type="radio" name="table" value="walnut"><span class="sw sw-walnut">Walnut</span></label>
+            <label title="Dark marble"><input type="radio" name="table" value="marble"><span class="sw sw-marble">Marble</span></label>
+          </div>
+        </div>
+        <div class="opt-row">
+          <div class="opt-label">Board</div>
+          <div class="seg" role="radiogroup"><label title="The planets on a gentle arc"><input type="radio" name="boardstyle" value="orbit" checked><span>Orbit</span></label><label title="One framed board"><input type="radio" name="boardstyle" value="panel"><span>Panel</span></label></div>
+        </div>
+        <div class="opt-row">
+          <div class="opt-label">Speed</div>
+          <div class="seg" role="radiogroup"><label><input type="radio" name="speed" value="normal" checked><span>Normal</span></label><label><input type="radio" name="speed" value="fast"><span>Fast</span></label></div>
+        </div>
+        <div class="opt-row opt-row-end">
+          <button id="btn-credits" type="button">Credits</button>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <div id="results-panel" style="display:none;">
+      <div class="results-content">
+        <h2 id="results-winner"></h2>
+        <div id="results-subtitle"></div>
+        <div id="results-match-table" style="display:none;"></div>
+        <div class="results-buttons"><button id="btn-close-results">Close</button></div>
+      </div>
+    </div>
+
+    <div class="start-panel-footer">
+      <div class="start-buttons">
+        <div class="start-buttons-main">
+          <button id="btn-tutorial">Tutorial<br><small>learn by playing</small></button>
+          <button id="btn-play">Play<br><small id="btn-play-sub">2 players · to 100</small></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="instructions-panel" style="display:none;">
+      <div class="instructions-content">
+        <h3>The mission</h3>
+        <ul>
+          <li>A survey probe is flying out through the Solar System, and two alien <strong>Artifacts</strong>, Alpha and Beta, are hidden somewhere among the planets. Score points by sending in sets of telemetry, steering the probe, and capturing the Artifacts.</li>
+          <li>2 to 4 players. The first to <strong>100 points</strong> (or 200 for a long game) wins.</li>
+        </ul>
+
+        <h3>The cards</h3>
+        <ul>
+          <li><strong>60 Telemetry cards</strong>: six for each of ten bodies, Mercury out to Pluto. The number in the corner is the body's place on the track, 1 to 10.</li>
+          <li><strong>15 Mission Control cards</strong>: special actions.</li>
+          <li><strong>2 Artifacts</strong>, 10 points each.</li>
+        </ul>
+
+        <h3>Setting up</h3>
+        <ul>
+          <li>The two Artifacts and 8 random cards are hidden face down, one under each body. The probe starts at Mercury.</li>
+          <li>Each player gets 10 cards (2 players), 9 (3 players) or 8 (4 players). One card is turned up to start the discard pile.</li>
+        </ul>
+
+        <h3>Your turn</h3>
+        <ul>
+          <li><strong>Draw</strong> one card: from the deck, or the top card of the discard pile.</li>
+          <li><strong>Play</strong> as much as you like:
+            <ul>
+              <li>a <strong>set</strong>: three or more cards of the same body, in front of you. The probe then moves <strong>one step outward</strong>;</li>
+              <li>a <strong>lay-off</strong>: one or more cards of a body that already has a set on the table (anyone's). You then move the probe <strong>one step either way</strong>. Lay off two cards together for one move, or one at a time for two moves;</li>
+              <li>one <strong>Mission Control</strong> card per turn: draw 2 cards, <em>or</em> take any card from the discard pile, <em>or</em> look under any body (take the card or leave it).</li>
+            </ul>
+          </li>
+          <li><strong>Discard</strong> one card to end your turn. You must always keep a card to discard.</li>
+        </ul>
+
+        <h3>The probe</h3>
+        <ul>
+          <li>Cards played at the body where the probe is are a <strong>close pass</strong>: they score <strong>4 points</strong> each instead of 2, and are marked with a cyan glow and a <strong>×2</strong> badge.</li>
+          <li>Whenever you play cards of a body you look at the card hidden under it. A normal card you may take into your hand or leave. An Artifact you must leave, <strong>unless the probe is there</strong>: then you capture it!</li>
+          <li>The probe stops at Mercury and Pluto: it never leaves the track.</li>
+        </ul>
+
+        <h3>End of a hand</h3>
+        <ul>
+          <li>The hand ends when someone discards their last card (goes out), or when the last card of the deck is drawn (that player finishes their turn).</li>
+          <li>Score 2 points per card in front of you, 4 per close-pass card, 10 per Artifact. Cards left in your hand don't count against you.</li>
+          <li>Going out earns a bonus equal to the probe's position: 1 at Mercury, up to 10 at Pluto.</li>
+          <li><strong>Full contact</strong>: if you go out holding <em>both</em> Artifacts, everyone else scores nothing that hand.</li>
+        </ul>
+
+        <h3>Keyboard</h3>
+        <ul>
+          <li><strong>D</strong> draw from the deck · <strong>T</strong> take the top discard</li>
+          <li>Click cards to select them, then <strong>Enter</strong> to play them (or discard a single card) · <strong>C</strong> clear the selection</li>
+          <li><strong>← / →</strong> move the probe · <strong>H</strong> hint</li>
+        </ul>
+
+        <h3>Tips</h3>
+        <ul>
+          <li>Use Mission Control cards quickly: they can't go in sets, and they clog your hand.</li>
+          <li>Steer the probe with lay-offs to set up a close pass, or to sit on a body where you know an Artifact is hidden.</li>
+          <li>The race to go out matters: the hand ends for everyone the moment someone does.</li>
+        </ul>
+
+      </div>
+      <div class="instructions-footer"><button id="btn-instructions-done">Done</button></div>
+    </div>
+  </div>
+</div>
+
+  <script src="./ar-core.js?v=97"></script>
+  <script src="./ar-ai.js?v=97"></script>
+  <script src="./ar-tutorial.js?v=97"></script>
+  <script src="./ar-app.js?v=97"></script>
+</body>
+</html>
