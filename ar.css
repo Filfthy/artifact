@@ -369,8 +369,12 @@ body.overlay-active #actions { visibility: hidden; }
   background: #7fe3ff;
   box-shadow: 0 0 8px #39c6ff;
 }
-#hand .acard.fresh { animation: fresh 1.2s ease-out; }
-@keyframes fresh { 0% { box-shadow: 0 0 0 4px #7fe3ff, 0 0 26px #39c6ff; } 100% { box-shadow: 0 2px 5px rgba(0,0,0,0.5); } }
+/* A card you've just drawn glows yellow, then slowly fades (FRESH_MS in ar-app.js) */
+#hand .acard.fresh { outline: 3px solid transparent; outline-offset: 0; animation: fresh 6s ease-in forwards; }
+@keyframes fresh {
+  0%, 30% { outline-color: rgba(255, 216, 74, 1); filter: drop-shadow(0 0 10px rgba(255, 216, 74, 0.95)); }
+  100% { outline-color: rgba(255, 216, 74, 0); filter: drop-shadow(0 0 0 rgba(255, 216, 74, 0)); }
+}
 
 /* ===== Cards ===== */
 .acard {

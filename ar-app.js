@@ -24,6 +24,7 @@ const ICONS = {
 let BOARD_STYLE = "orbit";   // "orbit" (planets on an arc) | "panel" (one framed board)
 const TABLES = ["stars", "space", "core", "cliffs", "pillars", "orion", "tarantula", "westerlund", "deepfield", "green", "walnut", "marble"];
 // Where the other players sit (seat 0 is you, along the bottom).
+const FRESH_MS = 6000;   // how long a newly drawn card glows
 const SEAT_POS = { 2: [null, "top1"], 3: [null, "top1", "top2"], 4: [null, "top1", "top2", "top3"] };   // all opposite you
 
 // ===== Ambient music, generated live =====
@@ -282,7 +283,7 @@ class Controller {
     this.epoch = 0;
     this.mode = "idle";       // idle | draw | play | peek | move | scan | busy | over
     this.sel = new Set();
-    this.fresh = new Set();
+    this.fresh = new Map();   // card id -> when it arrived in your hand (it glows, fading)
     this.doing = {};          // seat -> short text of what they're doing
     this.tut = null;
     this.soundMuted = true;
@@ -405,7 +406,8 @@ class Controller {
     const wrap = (name, fn) => { const orig = g[name].bind(g); g[name] = (...a) => { const r = orig(...a); try { fn(r, ...a); } catch (e) { /* ignore */ } return r; }; };
     wrap("draw", (card, p, from) => {
       if (!card) return;
-      self.log(`${who(p)} ${from === "discard" ? `took the <i>${self.escape(card.label)}</i> from the discard` : "drew from the deck"}`);
+      // Your own deck draws are named; other players' stay secret.
+      self.log(`${who(p)} ${from === "discard" ? `took the <i>${self.escape(card.label)}</i> from the discard` : p === 0 ? `drew <i>${self.escape(card.label)}</i> from the deck` : "drew from the deck"}`);
     });
     wrap("playCards", (res, p) => {
       if (!res) return;
@@ -413,11 +415,16 @@ class Controller {
         (res.close ? ` <span class="x2">close pass</span>` : "") + ` <span class="pts">+${res.count * (res.close ? 4 : 2)}</span>`, res.close ? "close" : "");
       if (res.peek && res.peek.captured) self.log(`${who(p)} captured <span class="art">Artifact ${res.peek.card.name}</span> <span class="pts">+10</span>`, "big");
     });
-    wrap("resolvePeek", (ok, p, take) => { if (ok && take) self.log(`${who(p)} took the hidden card`); });
+    wrap("resolvePeek", (ok, p, take) => {
+      if (!ok || !take) return;
+      const h = g.hand(p), got = p === 0 && h.length ? ` (<i>${self.escape(h[h.length - 1].label)}</i>)` : "";
+      self.log(`${who(p)} took the hidden card${got}`);
+    });
     wrap("moveProbe", (ok, p) => { if (ok) self.log(`probe → ${body(g.probe)}`, "probe"); });
     wrap("useMission", (res, p, id, action, arg) => {
       if (!res) return;
-      const what = action === "draw2" ? "drew 2" : action === "salvage" ? "took a card from the discard" : `looked under ${body(arg)}`;
+      const mine = p === 0 && res.cards ? ` (${res.cards.map(c => `<i>${self.escape(c.label)}</i>`).join(", ")})` : "";
+      const what = action === "draw2" ? `drew 2${mine}` : action === "salvage" ? "took a card from the discard" : `looked under ${body(arg)}`;
       self.log(`${who(p)} <span class="mc">Mission Control</span>: ${what}`);
     });
     wrap("discardCard", (res, p) => {
@@ -898,10 +905,15 @@ class Controller {
       el.style.zIndex = String(10 + i);
       if (this.sel.has(c.id)) el.classList.add("sel");
       if (playable.has(c.id)) el.classList.add("playable");
-      if (this.fresh.has(c.id)) el.classList.add("fresh");
+      const arrived = this.fresh.get(c.id);
+      if (arrived != null) {
+        // A redraw mid-fade picks the glow up where it was.
+        const age = performance.now() - arrived;
+        if (age < FRESH_MS) { el.classList.add("fresh"); el.style.animationDelay = -Math.round(age) + "ms"; }
+        else this.fresh.delete(c.id);
+      }
       box.appendChild(el);
     });
-    this.fresh.clear();
   }
 
   // Cards that could be played right now (in some set or lay-off).
@@ -1279,7 +1291,7 @@ class Controller {
     await this.fly(card, fromR, this.handRect(), { dur: 340 });
     if (ep !== this.epoch) return;
     this.playSfx(this.sfx.place);
-    this.fresh.add(card.id);
+    this.fresh.set(card.id, performance.now());
     this.mode = "play";
     this.render();
     this.tutDone("draw", { from });
@@ -1328,7 +1340,7 @@ class Controller {
           [{ label: "Take it", cls: "go", value: true }, { label: "Leave it", cls: "quiet", value: false }], "peek");
         if (ep !== this.epoch) return lifted.el.remove();
         g.resolvePeek(0, take);
-        if (take) { await this.peekToHand(lifted, pk.card); this.fresh.add(pk.card.id); }
+        if (take) { await this.peekToHand(lifted, pk.card); this.fresh.set(pk.card.id, performance.now()); }
         else await this.sinkPeek(lifted);
       }
       if (ep !== this.epoch) return;
@@ -1550,9 +1562,9 @@ class Controller {
     this.render();
     await this.fly(mc, mcR, this.rectOf(this.dom.discard), { dur: 300 });
     if (action === "draw2") {
-      for (const c of res.cards) { await this.fly(c, this.rectOf(this.dom.deck), this.handRect(), { dur: 300 }); this.fresh.add(c.id); }
+      for (const c of res.cards) { await this.fly(c, this.rectOf(this.dom.deck), this.handRect(), { dur: 300 }); this.fresh.set(c.id, performance.now()); }
     } else if (action === "salvage" && res.card) {
-      this.fresh.add(res.card.id);
+      this.fresh.set(res.card.id, performance.now());
     }
     if (ep !== this.epoch) return;
     this.mode = "play";
@@ -1586,7 +1598,7 @@ class Controller {
         [{ label: "Take it", cls: "go", value: true }, { label: "Leave it", cls: "quiet", value: false }], "peek");
       if (ep !== this.epoch) return lifted.el.remove();
       g.resolvePeek(0, take);
-      if (take) { await this.peekToHand(lifted, card); this.fresh.add(card.id); }
+      if (take) { await this.peekToHand(lifted, card); this.fresh.set(card.id, performance.now()); }
       else await this.sinkPeek(lifted);
     }
     if (ep !== this.epoch) return;
