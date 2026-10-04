@@ -139,6 +139,11 @@ const STARFIELD = {
     this.canvas.width = Math.round(W * dpr);
     this.canvas.height = Math.round(H * dpr);
     this.dpr = dpr;
+    // Phones: stars drawn at desktop size all but vanish, so they're bigger
+    // and brighter there, and the Milky Way is wider and stronger.
+    const phone = W > H && H <= 500;
+    this.boost = phone ? 1.7 : 1;
+    const glow = phone ? 2.2 : 1;
     // Seeded, so the sky stays the same when the window changes size.
     let seed = 7;
     const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -150,7 +155,7 @@ const STARFIELD = {
       const r = big > 0.985 ? 1.4 + rnd() * 1.0 : big > 0.9 ? 0.9 + rnd() * 0.5 : 0.35 + rnd() * 0.5;
       this.stars.push({
         x: rnd() * W, y: rnd() * H, r,
-        a: r > 1.3 ? 0.85 : 0.25 + rnd() * 0.55,
+        a: Math.min(1, (r > 1.3 ? 0.85 : 0.25 + rnd() * 0.55) * (phone ? 1.35 : 1)),
         c: tints[Math.floor(rnd() * tints.length)],
         tw: rnd() < 0.7 ? 0.45 + rnd() * 0.5 : 0.12,        // twinkle depth
         sp: 0.6 + rnd() * 2.2, ph: rnd() * Math.PI * 2       // speed, phase
@@ -172,7 +177,7 @@ const STARFIELD = {
     const len = Math.hypot(W, H) * 1.25;
     const cx = W * 0.47, cy = H * 0.56;
     const x0 = cx - ux * len / 2, y0 = cy - uy * len / 2;
-    const width = Math.min(W, H) * 0.15;
+    const width = Math.min(W, H) * (phone ? 0.24 : 0.15);
     const ph = [rnd() * 6.3, rnd() * 6.3, rnd() * 6.3, rnd() * 6.3];
     const wander = t => width * (0.55 * Math.sin(t * 6.3 * 1.2 + ph[0]) + 0.3 * Math.sin(t * 6.3 * 3.3 + ph[1]));
     const breadth = t => width * (0.75 + 0.35 * Math.sin(t * 6.3 * 1.7 + ph[2]) + 0.15 * Math.sin(t * 6.3 * 5.1 + ph[3]));
@@ -195,7 +200,7 @@ const STARFIELD = {
       b.rotate(-ang + (rnd() - 0.5) * 0.7);
       b.scale(1.5 + rnd() * 2, 0.45 + rnd() * 0.3);
       const g = b.createRadialGradient(0, 0, 0, 0, 0, r);
-      g.addColorStop(0, `rgba(${col},${(0.014 + rnd() * 0.024).toFixed(3)})`);
+      g.addColorStop(0, `rgba(${col},${((0.014 + rnd() * 0.024) * glow).toFixed(3)})`);
       g.addColorStop(1, "rgba(0,0,0,0)");
       b.fillStyle = g;
       b.fillRect(-r, -r, 2 * r, 2 * r);
@@ -220,9 +225,10 @@ const STARFIELD = {
     const dust = Math.round(W * H / 50);
     for (let k = 0; k < dust; k++) {
       const t = pickT(), off = gauss() * width * 0.55, [x, y] = at(t, off);
-      const a = (0.05 + rnd() * 0.3) * Math.exp(-(off * off) / (width * width));
+      const a = Math.min(1, (0.05 + rnd() * 0.3) * (phone ? 1.4 : 1)) * Math.exp(-(off * off) / (width * width));
       b.fillStyle = `rgba(${rnd() < 0.3 ? "255,235,210" : "215,225,255"},${a.toFixed(3)})`;
-      b.fillRect(x, y, 0.6 + rnd() * 0.6, 0.6 + rnd() * 0.6);
+      const ds = phone ? 1.1 : 1;
+      b.fillRect(x, y, (0.6 + rnd() * 0.6) * ds, (0.6 + rnd() * 0.6) * ds);
     }
     this.backdrop = bg;
     this.draw(performance.now());
@@ -238,7 +244,7 @@ const STARFIELD = {
       const a = st.a * k;
       c.fillStyle = `rgba(${st.c},${a.toFixed(3)})`;
       c.beginPath();
-      c.arc(st.x * d, st.y * d, st.r * d, 0, Math.PI * 2);
+      c.arc(st.x * d, st.y * d, st.r * d * this.boost, 0, Math.PI * 2);
       c.fill();
       if (st.r > 1.3) {   // bright stars get a soft glow and a faint cross
         const g = c.createRadialGradient(st.x * d, st.y * d, 0, st.x * d, st.y * d, st.r * 5 * d);
@@ -649,7 +655,8 @@ class Controller {
     const probe = document.createElement("div");
     probe.id = "probe";
     probe.title = "The probe";
-    probe.innerHTML = `<img src="img/probe-token.webp" alt="Probe" draggable="false">`;
+    // Phones: just the probe itself, without the token's rings and dots.
+    probe.innerHTML = `<img src="img/${this.L && this.L.compact ? "probe-plain" : "probe-token"}.webp" alt="Probe" draggable="false">`;
     t.appendChild(probe);
     this.placeProbe(false);
     if (this.mode === "move") {
@@ -1398,9 +1405,35 @@ class Controller {
   }
 
   // A choice shown beside a lifted card. kind "peek" respects the tutorial.
+  // Question boxes can be dragged out of the way (finger or mouse); a tap on
+  // a button or card inside still works as normal.
+  makeDraggable(el, useTransform = false) {
+    let start = null;
+    el.addEventListener("pointerdown", e => {
+      if (e.button > 0 || e.target.closest("button, .acard, input")) return;
+      const r = el.getBoundingClientRect();
+      const m = (el.style.transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/) || [0, 0, 0]).slice(1).map(Number);
+      start = { x: e.clientX, y: e.clientY, l: r.left, t: r.top, w: r.width, h: r.height, tx: m[0], ty: m[1] };
+      el.setPointerCapture(e.pointerId);
+      el.classList.add("dragging");
+    });
+    el.addEventListener("pointermove", e => {
+      if (!start) return;
+      // keep at least part of it on screen
+      const dx = Math.max(-start.l - start.w + 60, Math.min(window.innerWidth - start.l - 60, e.clientX - start.x));
+      const dy = Math.max(-start.t, Math.min(window.innerHeight - start.t - 40, e.clientY - start.y));
+      if (useTransform) el.style.transform = `translate(${start.tx + dx}px, ${start.ty + dy}px)`;
+      else { el.style.left = (start.l + dx) + "px"; el.style.top = (start.t + dy) + "px"; }
+    });
+    const end = () => { start = null; el.classList.remove("dragging"); };
+    el.addEventListener("pointerup", end);
+    el.addEventListener("pointercancel", end);
+  }
+
   askAtPeek(pk, html, buttons, kind = "") {
     const ui = document.createElement("div");
     ui.className = "peek-ui";
+    this.makeDraggable(ui);
     ui.innerHTML = `<div class="peek-text">${html}</div><div class="peek-buttons"></div>`;
     document.body.appendChild(ui);
     // Placed from where the card ends up (it may still be moving).
@@ -1849,6 +1882,9 @@ class Controller {
     cards.forEach(c => row.appendChild(this.makeCard(c)));
     body.appendChild(row);
     btns.innerHTML = "";
+    const panel = box.querySelector(".popup-panel");
+    if (!panel.dataset.drag) { panel.dataset.drag = "1"; this.makeDraggable(panel, true); }
+    panel.style.transform = "";
     box.style.display = "flex";
     if (this.tut) this.tutOnPopup(kind, cards);
     const hidden = [document.getElementById("coach"), ...document.querySelectorAll(".tut-spot-box")].filter(e => e && e.style.display !== "none");

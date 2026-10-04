@@ -1230,3 +1230,21 @@ body.compact #sets .mc .acard .art { width: calc(92cqw * var(--f, 1)); height: c
 body.compact #sets .mc .acard .idx .num { font-size: 46cqw; }
 /* Phones: opponents' scores live in the sets column, not over their hands */
 body.compact #opps .seat-head .score { display: none; }
+/* Question boxes can be dragged by any bare part of them */
+.peek-ui, .popup-panel { touch-action: none; cursor: grab; position: relative; padding-top: 18px !important; }
+.peek-ui { position: fixed; }
+/* a dotted grip, the usual sign for "drag me" */
+.peek-ui::before, .popup-panel::before { content: ""; position: absolute; top: 5px; left: 50%; width: 36px; height: 10px; margin-left: -18px;
+  background: radial-gradient(circle, rgba(127, 227, 255, 0.85) 1.4px, transparent 1.8px) 0 0 / 6px 5px; }
+/* see-through, so the table underneath still shows */
+.peek-ui { background: rgba(4, 6, 12, 0.72) !important; }
+.popup-panel { background: rgba(4, 8, 20, 0.74) !important; }
+#popup { background: rgba(0, 0, 0, 0.12) !important; }
+.peek-ui.dragging, .popup-panel.dragging { cursor: grabbing; }
+.peek-ui button, .popup-panel button, .popup-panel .acard { cursor: pointer; }
+/* Phones: names on the board and on your cards in pure white; bigger on your cards */
+body.compact .tile .tile-name { color: #fff; font-size: var(--tile-font); letter-spacing: 0.04em; }
+body.compact #hand .acard.body .cname { color: #fff; font-size: 12.5cqw; top: 8cqw; }
+/* Phones: the bare probe, outlined so it reads over the hidden cards */
+body.compact #probe { background: none !important; box-shadow: none !important; transform: scale(1.75); }
+body.compact #probe img { filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 2px #000) drop-shadow(0 0 5px rgba(111, 211, 255, 0.8)); }
