@@ -1191,10 +1191,10 @@ body.compact #status { top: var(--st-t); height: auto; overflow: visible; z-inde
 body.compact #sets .seat-head { font-size: 15px; }
 body.compact #sets .hand-pts { font-size: 13px; }
 /* Phones: a shorter board; the probe hangs half off the foot of its space */
-body.compact .tile .space { padding-bottom: calc(var(--tok) * 0.45 + 2px); gap: 1px; }
-/* Phones: the planet's name, small, across the top of each card in your hand */
-body.compact #hand .acard.body .cname { display: block; top: 3cqw; bottom: auto; left: 5cqw; right: auto; text-align: left; white-space: nowrap; font-size: 13cqw; font-weight: 600; letter-spacing: 0.02em; color: #dfe6ff; text-shadow: 0 0 3px #000; }
-body.compact #hand .acard.body .idx { top: 17cqw; }
+body.compact .tile .space { padding-top: 3px; padding-bottom: calc(var(--tok) * 0.3); gap: 0; }
+/* Phones: the planet's name, small, to the right of the number on each card in your hand */
+body.compact #hand .acard.body .cname { display: block; top: 9cqw; bottom: auto; left: 21cqw; right: auto; text-align: left; white-space: nowrap; font-size: 9.5cqw; font-weight: 600; letter-spacing: 0; color: #dfe6ff; text-shadow: 0 0 3px #000; }
+body.compact #hand .acard.body.pluto .cname { left: 34cqw; }
 /* Phones: the open log covers the whole display until you shut it */
 body.compact.show-log #game-log { position: fixed; left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; z-index: 26000; border: none; border-radius: 0; padding: 14px 24px 64px; box-sizing: border-box; }
 body.compact.show-log #game-log .log-title { display: block; text-align: center; font-size: 13px; margin-bottom: 8px; }
@@ -1204,3 +1204,29 @@ body.compact.show-log #controls, body.compact.show-log #btn-hint-top { display: 
 body.compact #sets .seat-head { flex-wrap: wrap; row-gap: 2px; white-space: normal; }
 /* Whoever's turn it is: name and hand glow */
 #opps .pseat.active .fan .acard { box-shadow: 0 0 0 1px var(--sky-hi), 0 0 10px rgba(57, 198, 255, 0.75); }
+/* Phones: start screen and popup type at a readable size */
+@media (orientation: landscape) and (max-height: 500px) {
+  #start-panel { font-size: 11.5px !important; padding-top: 50px !important; }
+  #start-panel .opt-row { grid-template-columns: 5.4em 1fr; gap: 0.4em; margin-bottom: 0.45em; }
+  #start-panel .opt-row button, #start-panel .seg button { padding: 0.35em 0.45em; white-space: nowrap; }
+  #start-panel .tab-btn { white-space: nowrap; padding: 0.35em 0.3em; }
+  #btn-play small, #btn-play-sub, #btn-tutorial small, .start-buttons-main button small { font-size: 12px !important; opacity: 0.9; }
+  #btn-stats, #btn-credits { font-size: 13px !important; }
+  .popup-panel { font-size: 16px; }
+  .popup-buttons button { font-size: 16px; min-height: 44px; }
+  .peek-ui { font-size: 16px; }
+  .peek-buttons button { font-size: 16px; min-height: 44px; flex: 1; padding: 0.3em 0.6em; }
+  #coach button { font-size: 16px; }
+}
+/* Phones: each set is one card with the edges of the rest behind it */
+body.compact #sets .mc + .mc { margin-left: calc(var(--mcw) * var(--ms) * -1 + 5px); }
+body.compact #sets { gap: 4px; }
+body.compact .set-block { gap: 2px; padding: 2px 4px 3px; }
+body.compact .melds { min-height: 0; gap: 4px 10px; row-gap: 16px !important; padding-bottom: 12px; }
+body.compact .melds:has(.empty-note) { padding-bottom: 0; }
+/* the cards behind are bare outlines; the front card's number sits over a bigger planet */
+body.compact #sets .meld .mc:not(:last-child) .acard > * { visibility: hidden; }
+body.compact #sets .mc .acard .art { width: calc(92cqw * var(--f, 1)); height: calc(92cqw * var(--f, 1)); left: 50%; top: 58%; }
+body.compact #sets .mc .acard .idx .num { font-size: 46cqw; }
+/* Phones: opponents' scores live in the sets column, not over their hands */
+body.compact #opps .seat-head .score { display: none; }

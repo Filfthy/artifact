@@ -488,12 +488,12 @@ class Controller {
     const by0 = topH + pad, by1 = compact ? H - Math.round(ch * 0.98) - pad : dockTop - pad;
     const tw = Math.min((bx1 - bx0) / N_BODIES, 118);
     const fill = compact ? 0.97 : 0.74, tall = compact ? 2.15 : W / H < 1.6 ? 3.1 : 2.4;   // phones and tablets: taller, narrower spaces
-    // Orbit style: the planets sit on a gentle arc, so the outer ones dip lower.
     // (Phones: only as tall as the name, picture and number need.)
     const tf0 = Math.round(Math.max(9, Math.min(14, tw * 0.13)));
-    const want = compact ? tw * 1.8 + tf0 * 3.5 + 12 : tw * tall;
-    const arcH = BOARD_STYLE === "orbit" ? Math.round(Math.min(want, (by1 - by0) * fill) * (compact ? 0.12 : 0.16)) : 0;
-    const trackH = Math.round(Math.min(want, (by1 - by0) * fill)) - arcH;
+    const want = compact ? tw * 1.5 + tf0 * 3.3 + 6 : tw * tall;
+    // Orbit style: the planets sit on a gentle arc (flat on phones, to save height).
+    const arcH = BOARD_STYLE === "orbit" && !compact ? Math.round(Math.min(want, (by1 - by0) * fill) * 0.16) : 0;
+    const trackH = Math.round(Math.min(want, (by1 - by0) * fill) * (compact ? 0.88 : 1)) - arcH;
     const boardW = Math.round(tw * N_BODIES), boardH = trackH + arcH;
     const board = { left: Math.round((bx0 + bx1 - boardW) / 2), top: Math.round(by0 + Math.max(0, (by1 - by0 - boardH) * 0.6)), width: boardW, height: boardH };
     const sw = Math.round(Math.min(tw * 0.78, Math.max(pw, tw * 0.6)));   // hidden cards: at least as wide as the deck
@@ -501,7 +501,7 @@ class Controller {
     const spaceH = trackH - tipH;                                    // the board itself
     const tok = Math.round(compact ? Math.min(tw * 0.56, spaceH * 0.32) : Math.min(tw * 0.66, spaceH * 0.38));        // the probe token
     const tf = Math.round(Math.max(9, Math.min(14, tw * 0.13)));
-    const pl = Math.round(Math.min(tw * 0.82, spaceH - tok * (compact ? 0.45 : 0.78) - tf * (compact ? 3.5 : 3.8) - (compact ? 8 : 14)));   // the token overlaps the plinth's edge
+    const pl = Math.round(Math.min(tw * 0.82, spaceH - tok * (compact ? 0.3 : 0.78) - tf * (compact ? 3.3 : 3.8) - (compact ? 4 : 14)));   // the token overlaps the plinth's edge
 
     // Opponents
     const topX0 = bx0, topX1 = compact ? Math.min(W - setsW - 2 * pad, ctrlLeft - hintW - 3 * pad) : W - setsW - 2 * pad;
@@ -534,7 +534,7 @@ class Controller {
     document.body.classList.toggle("board-panel", BOARD_STYLE !== "orbit");
     set("--space-h", spaceH); set("--tok", tok);
     set("--fch", Math.max(26, Math.round(Math.min(topH - headH - 8, leftW ? leftW * 0.7 : 999))));
-    set("--smh", Math.round(Math.max(compact ? 40 : 34, Math.min(58, H * 0.068))));   // set cards in the panel
+    set("--smh", compact ? 34 : Math.round(Math.max(34, Math.min(58, H * 0.068))));   // set cards in the panel
     set("--tile-font", Math.round(Math.max(9, Math.min(14, tw * 0.13))));
     set("--seat-font", seatFont);
     set("--chip-font", Math.round(Math.max(10, Math.min(14, H * 0.019))));
@@ -714,7 +714,7 @@ class Controller {
     const left = Math.round(r.left - tr.left + (r.width - this.L.tok) / 2);
     if (animate && left !== prev) probe.classList.toggle("going-in", left < prev);
     probe.style.left = left + "px";
-    probe.style.top = Math.round(r.top - tr.top + this.L.spaceH - this.L.tok * (this.L.compact ? 0.5 : 0.84)) + "px";   // phones: it hangs half off the space
+    probe.style.top = Math.round(r.top - tr.top + this.L.spaceH - this.L.tok * (this.L.compact ? 0.3 : 0.84)) + "px";   // phones: it hangs mostly below the space
     if (!animate) { probe.getBoundingClientRect(); probe.style.transition = ""; }
   }
 
@@ -1404,7 +1404,7 @@ class Controller {
     ui.innerHTML = `<div class="peek-text">${html}</div><div class="peek-buttons"></div>`;
     document.body.appendChild(ui);
     // Placed from where the card ends up (it may still be moving).
-    const uw = Math.min(320, this.L.W * 0.3);
+    const uw = this.L.compact ? 240 : Math.min(320, this.L.W * 0.3);
     ui.style.width = uw + "px";
     const right = pk.x + pk.w + 14 + uw < this.L.W - 8;
     ui.style.left = Math.round(right ? pk.x + pk.w + 14 : pk.x - 14 - uw) + "px";
