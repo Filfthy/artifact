@@ -1247,5 +1247,23 @@ body.compact #opps .seat-head .score { display: none; }
 body.compact .tile .tile-name { color: #fff; font-size: var(--tile-font); letter-spacing: 0.04em; }
 body.compact #hand .acard.body .cname { color: #fff; font-size: 12.5cqw; top: 8cqw; }
 /* Phones: the bare probe on its black disc, so it reads over the hidden cards */
-body.compact #probe { background: radial-gradient(circle, #05080f 0%, #05080f 68%, transparent 70%) !important; transform: scale(1.5); }
+body.compact #probe { background: #05080f !important; border: 1.5px solid var(--sky-hi) !important; box-shadow: 0 0 6px rgba(111, 211, 255, 0.7), 0 2px 6px rgba(0, 0, 0, 0.9) !important; transform: scale(1.5); }
 body.compact #probe img { width: 84% !important; height: 84% !important; filter: drop-shadow(0 0 2px rgba(111, 211, 255, 0.7)); }
+/* Phones: no dim grey text anywhere; small screens need full contrast */
+@media (orientation: landscape) and (max-height: 500px) {
+  .empty-note { opacity: 1; color: #dfe6ff; }
+  .pile-label { color: #fff; }
+  .ar-aka, #ho-sub, .ho-stats, .stat-wide { color: #fff; }
+  .ho-pts small, .ho-target, .stat span, #bg-credit, #bg-credit b { color: #e8eeff; }
+  .ho-pts s, .haul.none { opacity: 0.8; color: #e8eeff; }
+  .seat-head .cards { opacity: 1; }
+  .log-list, .log-row.end { color: #f0f4ff; }
+  .log-row.probe { color: var(--sky-hi); }
+  #start-panel .tab-btn { color: rgba(255, 255, 255, 0.85); }
+  #start-panel .tab-btn.active { color: #fff; }
+  .opt-label { opacity: 1; }
+  .seg button, .opt-row button, .settings-body button, .seg label > span { color: #fff !important; }
+  .seg input:checked + span { color: var(--gold) !important; }
+  .modal-shade .tut-offer-text { opacity: 1; }
+  #instructions, #instructions li, .tab-pane { color: #f0f4ff; }
+}
