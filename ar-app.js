@@ -451,8 +451,8 @@ class Controller {
     const ctrl = document.getElementById("controls");
     const cr = ctrl ? ctrl.getBoundingClientRect() : { height: 40 };
     const ctrlH = cr.height + 12;
-    // Phones on their side: a compact table. Opponents shrink to one line
-    // beside the corner buttons with the turn prompt under them, the buttons
+    // Phones on their side: a compact table. Opponents sit across the top
+    // beside the corner buttons with the turn prompt floating under them, the buttons
     // move to the foot of the right-hand column, Sets and Log share that
     // column as tabs, and the cards grow so they're big enough to tap.
     const compact = W > H && H <= 500;
@@ -464,10 +464,10 @@ class Controller {
 
     const setsW = compact ? Math.round(Math.max(170, W * 0.2)) : Math.round(Math.max(200, W * 0.21));
     const leftW = hasLeft ? Math.round(W * 0.11) : 0;
-    const topH = compact ? Math.round(ctrlH) : Math.round(H * (W / H < 1.6 ? 0.17 : 0.2));
+    const topH = compact ? Math.round(Math.max(ctrlH, H * 0.2)) : Math.round(H * (W / H < 1.6 ? 0.17 : 0.2));
     const handH = compact ? Math.round(H * 0.28) : Math.round(H * 0.21);
     const seatFont = Math.round(Math.max(11, Math.min(16, H * 0.022)));
-    const headH = Math.round(seatFont * 1.7);
+    const headH = compact ? 26 : Math.round(seatFont * 1.7);
 
     // Cards: the hand is a fan along the bottom; deck and discard sit small
     // in the bottom-left corner.
@@ -483,9 +483,9 @@ class Controller {
     // the hand dips off the bottom edge.)
     const dockH = compact ? Math.round(H * 0.4) : Math.round(Math.max(64, H * 0.085));
     const dockTop = compact ? H - dockH - pad : H - handH - Math.round(ch * 0.32) - dockH;
-    // Phones: the turn prompt gets its own strip under the opponents.
-    const stripH = compact ? 42 : 0;
-    const by0 = topH + stripH + pad, by1 = compact ? H - Math.round(ch * 0.98) - pad : dockTop - pad;
+    // (Phones: the turn prompt floats over the gap under the opponents.)
+    const stripH = 0;
+    const by0 = topH + pad, by1 = compact ? H - Math.round(ch * 0.98) - pad : dockTop - pad;
     const tw = Math.min((bx1 - bx0) / N_BODIES, 118);
     const fill = compact ? 0.97 : 0.74, tall = compact ? 2.15 : W / H < 1.6 ? 3.1 : 2.4;   // phones and tablets: taller, narrower spaces
     // Orbit style: the planets sit on a gentle arc, so the outer ones dip lower.
@@ -803,9 +803,7 @@ class Controller {
       const b = L.boxes[where];
       Object.assign(s.style, { left: b.left + "px", top: b.top + "px", width: b.width + "px", height: b.height + "px" });
       s.innerHTML = this.seatHead(p);
-      const nCards = g.hands ? g.hands[p].length : 0;
-      if (L.compact) s.querySelector(".seat-head").insertAdjacentHTML("beforeend", `<span class="count" title="Cards in hand">${nCards}</span>`);
-      else s.appendChild(this.fanEl(nCards));
+      s.appendChild(this.fanEl(g.hands ? g.hands[p].length : 0));
       if (this.doing[p]) {
         const d = document.createElement("div");
         d.className = "doing-bubble";
@@ -939,7 +937,7 @@ class Controller {
       return btn;
     };
     if (g.phase === "idle") { this.setStatus(""); return; }
-    if (g.turn !== 0) { this.setStatus(g.phase === "handOver" ? "" : `${this.escape(this.name(g.turn))} is playing…`); return; }
+    if (g.turn !== 0) { this.setStatus(g.phase === "handOver" || (this.L && this.L.compact) ? "" : `${this.escape(this.name(g.turn))} is playing…`); return; }
     if (this.mode === "busy") { this.setStatus(""); return; }
 
     const hintBtn = () => {};   // the Hint button lives by the corner controls

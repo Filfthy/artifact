@@ -1183,12 +1183,11 @@ body.compact #game-log { display: flex; z-index: 6; border-top: none; padding: 6
 body.compact.show-log #game-log { transform: none; opacity: 1; pointer-events: auto; }
 body.compact #game-log .log-title { display: none; }
 body.compact .log-list { font-size: 14px; }
-/* Phones: one line per opponent, the prompt in a strip under them, bigger type */
-body.compact #opps .pseat { display: flex; align-items: flex-start; }
+/* Phones: the prompt floats under the opponents; bigger type */
 body.compact #opps .seat-head { font-size: 15px; gap: 0.4em; }
 body.compact #opps .seat-head .nm { min-width: 0; flex: 0 1 auto; }
 body.compact #opps .seat-head .count { font-size: 13px; flex: none; }
-body.compact #status { top: var(--st-t); font-size: 16px; line-height: 1.2; }
+body.compact #status { top: var(--st-t); height: auto; overflow: visible; z-index: 6; font-size: 16px; line-height: 1.2; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 4px #000; }
 body.compact #sets .seat-head { font-size: 15px; }
 body.compact #sets .hand-pts { font-size: 13px; }
 /* Phones: a shorter board; the probe hangs half off the foot of its space */
@@ -1203,3 +1202,5 @@ body.compact.show-log .log-list { font-size: 16px; line-height: 1.45; width: 100
 body.compact.show-log #log-toggle { position: fixed; z-index: 26001; top: auto !important; bottom: 10px; left: 50% !important; width: 220px !important; height: 42px !important; transform: translateX(-50%); background: #0b1430; border-color: var(--sky); }
 body.compact.show-log #controls, body.compact.show-log #btn-hint-top { display: none !important; }
 body.compact #sets .seat-head { flex-wrap: wrap; row-gap: 2px; white-space: normal; }
+/* Whoever's turn it is: name and hand glow */
+#opps .pseat.active .fan .acard { box-shadow: 0 0 0 1px var(--sky-hi), 0 0 10px rgba(57, 198, 255, 0.75); }
