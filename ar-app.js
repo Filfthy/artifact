@@ -288,8 +288,7 @@ class Controller {
     this.tut = null;
     this.soundMuted = true;
     this.audioCtx = null;
-    this.sfx = { place: new Audio("card-place-2.ogg"), shove: new Audio("card-shove-2.ogg") };
-    this.sfx.place.volume = 0.8;
+    this.sfx = { shove: new Audio("card-shove-2.ogg") };
     this.sfx.shove.volume = 0.45;
 
     try {
@@ -1290,7 +1289,7 @@ class Controller {
     this.renderPiles();
     await this.fly(card, fromR, this.handRect(), { dur: 340 });
     if (ep !== this.epoch) return;
-    this.playSfx(this.sfx.place);
+    this.sfxFlick();
     this.fresh.set(card.id, performance.now());
     this.mode = "play";
     this.render();
@@ -1312,7 +1311,7 @@ class Controller {
     res.slotR = slotR;
     await this.flyToStack(0, res.loc, cards, rects);
     if (ep !== this.epoch) return;
-    this.playSfx(this.sfx.place);
+    this.sfxFlick();
     if (res.close) this.sfxChime();
     if (res.close) this.toast(`Close pass at ${BODIES[res.loc].name}, ${res.count} × 4 points`, "", 1600);
     await this.afterPlayPeek(0, res);
@@ -1622,7 +1621,7 @@ class Controller {
     this.render();
     await this.fly(card, r, this.rectOf(this.dom.discard), { dur: 320 });
     if (ep !== this.epoch) return;
-    this.playSfx(this.sfx.place);
+    this.sfxFlick();
     this.renderPiles();
     if (this.tut) { this.tutDone("discard", {}); return; }
     if (res.handOver) return this.handOver();
@@ -1685,7 +1684,7 @@ class Controller {
       const where = BODIES[res.loc].name;
       this.doing[p] = `${a.type === "meld" ? "set" : "lay-off"}: ${res.count} ${where}${res.close ? " (close pass!)" : ""}`;
       await this.flyToStack(p, res.loc, cards, [from]);
-      this.playSfx(this.sfx.place);
+      this.sfxFlick();
       if (res.close) this.sfxChime();
       this.toast(`${nm} ${a.type === "meld" ? "plays a set of" : "lays off"} ${res.count} ${where}${res.close ? " · close pass ×2" : ""}`, res.close ? "gold" : "");
       await wait(650);
@@ -1725,7 +1724,7 @@ class Controller {
     if (!res) console.error("AI discard refused", JSON.stringify({ p, turn: g.turn, phase: g.phase, pending: g.pending, hand: g.hand(p).length }));
     await this.fly(card, this.seatRect(p), this.rectOf(this.dom.discard), { dur: 320 });
     if (ep !== this.epoch) return;
-    this.playSfx(this.sfx.place);
+    this.sfxFlick();
     delete this.doing[p];
     this.render();
     await wait(300);
@@ -2323,6 +2322,34 @@ class Controller {
     src.connect(f).connect(g).connect(ctx.destination);
     src.start(now);
     src.stop(now + len + 0.02);
+  }
+  // A card landing: a quick double flick, two short bursts of filtered noise
+  // ("fwip-fwip"), the second a little brighter.
+  sfxFlick() {
+    if (this.soundMuted) return;
+    const ctx = this.ensureAudioContext();
+    if (!ctx) return;
+    const burst = (t, dur, freq, peak) => {
+      const now = ctx.currentTime + t;
+      const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * (dur + 0.02)), ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const f = ctx.createBiquadFilter();
+      f.type = "bandpass";
+      f.frequency.value = freq;
+      f.Q.value = 1.2;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(peak, now + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+      src.connect(f).connect(g).connect(ctx.destination);
+      src.start(now);
+      src.stop(now + dur + 0.02);
+    };
+    burst(0, 0.06, 2600, 0.29);
+    burst(0.07, 0.05, 3400, 0.22);
   }
   sfxChime() { this.playTones([[1047, 0, 0.5], [1319, 0.07, 0.5], [1568, 0.14, 0.6]], { type: "sine", gain: 0.07 }); }
   sfxPeek() { this.playTones([[440, 0, 0.08], [660, 0.05, 0.1]], { type: "sine", gain: 0.05 }); }
