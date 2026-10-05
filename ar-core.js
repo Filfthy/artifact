@@ -96,6 +96,7 @@ class ArtifactGame {
     this.captured = Array.from({ length: n }, () => []);
     this.melded = new Array(N_BODIES).fill(false);    // a meld of this body is on the table
     this.known = Array.from({ length: n }, () => new Array(N_BODIES).fill(null)); // what each player has seen under each body
+    this.shown = Array.from({ length: n }, () => []);   // cards everyone saw go into each hand (taken from the discard pile)
     this.pending = null;
     this.missionUsed = false;
     this.lastCardDrawn = false;
@@ -125,6 +126,7 @@ class ArtifactGame {
       return new Card(id++, "body", BODIES.findIndex(b => b.key === c));
     };
     this.hands = pr.hands.map(h => h.map(mk));
+    this.shown = this.hands.map(() => []);
     this.deck = pr.deck.map(mk);
     this.discard = pr.discard.map(mk);
     this.slots = pr.slots.map(c => (c ? mk(c) : null));
@@ -187,6 +189,7 @@ class ArtifactGame {
     if (from === "discard") {
       if (!this.discard.length) return null;
       card = this.discard.pop();
+      this.shown[p].push(card);
     } else {
       if (!this.deck.length) return null;
       card = this.deck.pop();
@@ -203,6 +206,8 @@ class ArtifactGame {
     for (const id of ids) {
       const i = this.hands[p].findIndex(c => c.id === id);
       out.push(this.hands[p].splice(i, 1)[0]);
+      const k = this.shown[p].findIndex(c => c.id === id);
+      if (k >= 0) this.shown[p].splice(k, 1);
     }
     return out;
   }

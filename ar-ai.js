@@ -8,8 +8,10 @@
 //   chooseDiscard(g, p)       -> card id
 
 class ArtifactAI {
-  constructor(difficulty = "medium") { this.difficulty = difficulty; }
-  setDifficulty(d) { this.difficulty = d; }
+  constructor(difficulty = "medium") { this.setDifficulty(difficulty); }
+  // "hard" (Commanders) looks ahead by simulation; "plan" is the same
+  // turn planner without it, used to play the simulated futures.
+  setDifficulty(d) { this.difficulty = d; this.planner = d === "hard" || d === "plan"; this.sims = d === "hard"; }
 
   groups(g, p) {
     const gr = Array.from({ length: N_BODIES }, () => []);
@@ -33,6 +35,7 @@ class ArtifactAI {
   }
 
   chooseDraw(g, p) {
+    if (this.sims && this.uses("draw")) return this.simDraw(g, p);
     const top = g.topDiscard();
     if (!top || !g.deck.length) return top ? "discard" : "deck";
     if (top.id === this.lastDiscard) return "deck";   // never take back what we just threw away
@@ -50,11 +53,12 @@ class ArtifactAI {
   }
 
   choosePlay(g, p) {
+    if (this.sims && this.uses("play")) return this.simPlay(g, p);
     const hand = g.hand(p);
     const gr = this.groups(g, p);
     const spare = hand.length - 1;               // must keep a card to discard
     const arts = this.knownArtifacts(g, p);
-    const easy = this.difficulty === "easy", hard = this.difficulty === "hard";
+    const easy = this.difficulty === "easy", hard = this.planner;
 
     // Mission Control first (it may bring cards to play).
     const mc = hand.find(c => c.kind === "mission");
@@ -182,6 +186,7 @@ class ArtifactAI {
 
   choosePeek(g, p, card) {
     if (!card || card.kind === "artifact") return false;
+    if (this.sims && this.uses("peek")) return this.simPeek(g, p);
     if (card.kind === "mission") return true;
     const gr = this.groups(g, p);
     return gr[card.loc].length >= 1 || g.melded[card.loc] || this.difficulty === "easy";
@@ -189,8 +194,9 @@ class ArtifactAI {
 
   chooseMove(g, p, options) {
     if (options.length === 1) return options[0];
+    if (this.sims && this.uses("move")) return this.simMove(g, p, options);
     if (this.difficulty === "easy") return options[Math.floor(Math.random() * options.length)];
-    if (this.difficulty === "hard") {
+    if (this.planner) {
       // Follow the plan: try each direction and see which leaves the better turn.
       const gr = this.groups(g, p), arts = this.knownArtifacts(g, p), spare = g.hand(p).length - 1;
       let best = options[0], bestV = -Infinity;
@@ -218,6 +224,7 @@ class ArtifactAI {
   }
 
   chooseDiscard(g, p) {
+    if (this.sims && this.uses("discard")) { const id = this.simDiscard(g, p); this.lastDiscard = id; return id; }
     const hand = g.hand(p);
     const gr = this.groups(g, p);
     let worst = null, worstV = Infinity;
@@ -233,5 +240,263 @@ class ArtifactAI {
     }
     this.lastDiscard = worst.id;
     return worst.id;
+  }
+
+  // =====================================================================
+  // Commanders: look ahead by simulation.
+  // Before each decision, the cards this player can't see are dealt out in
+  // many possible ways (keeping everything it does know: its own hand, the
+  // table, the whole discard pile, hidden cards it has looked at, and cards
+  // others were seen to take). Each option is tried in every one of those
+  // worlds and the hand is played out to the end by quick players; the
+  // option that leaves it furthest ahead of the others wins. Holding sets
+  // back, not feeding lay-offs, safe discards and watching the clock all
+  // fall out of that, rather than being written as rules.
+  // =====================================================================
+
+  static cloneGame(g) {
+    const w = Object.create(Object.getPrototypeOf(g));
+    w.numPlayers = g.numPlayers; w.target = g.target; w.scores = g.scores.slice();
+    w.dealer = g.dealer; w.handNo = g.handNo; w.listeners = []; w.history = []; w.gameOver = false;
+    w.phase = g.phase; w.probe = g.probe; w.turn = g.turn;
+    w.pending = g.pending ? Object.assign({}, g.pending) : null;
+    w.missionUsed = g.missionUsed; w.lastCardDrawn = g.lastCardDrawn; w.endInfo = null;
+    w.hands = g.hands.map(h => h.slice()); w.deck = g.deck.slice(); w.discard = g.discard.slice(); w.slots = g.slots.slice();
+    w.table = g.table.map(t => t.map(x => ({ normal: x.normal, close: x.close })));
+    w.melded = g.melded.slice(); w.captured = g.captured.map(c => c.slice());
+    w.known = g.known.map(k => k.slice());
+    w.shown = (g.shown || g.hands.map(() => [])).map(x => x.slice());
+    return w;
+  }
+
+  static shuffleInPlace(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+
+  // One possible world, as far as player p can tell.
+  determinize(g, p) {
+    const w = ArtifactAI.cloneGame(g);
+    const n = w.numPlayers, pool = [], arts = [], open = [];
+    const fixed = w.shown.map(x => new Set(x.map(c => c.id)));
+    for (let q = 0; q < n; q++) if (q !== p) for (const c of w.hands[q]) if (!fixed[q].has(c.id)) pool.push(c);
+    for (const c of w.deck) pool.push(c);
+    for (let loc = 0; loc < N_BODIES; loc++) {
+      const c = w.slots[loc];
+      if (!c) continue;
+      const k = g.known[p][loc];
+      if (k && k.id === c.id) continue;
+      open.push(loc);
+      (c.kind === "artifact" ? arts : pool).push(c);
+    }
+    ArtifactAI.shuffleInPlace(pool);
+    ArtifactAI.shuffleInPlace(open);
+    open.forEach((loc, i) => { w.slots[loc] = i < arts.length ? arts[i] : pool.pop(); });
+    for (let q = 0; q < n; q++) {
+      if (q === p) continue;
+      const size = w.hands[q].length;
+      const h = w.hands[q].filter(c => fixed[q].has(c.id));
+      while (h.length < size) h.push(pool.pop());
+      w.hands[q] = h;
+      // Others know whatever is now under the places they looked at.
+      for (let loc = 0; loc < N_BODIES; loc++) if (w.known[q][loc]) w.known[q][loc] = w.slots[loc];
+    }
+    w.deck = pool;
+    return w;
+  }
+
+  // Play a (simulated) hand on to its end.
+  static playOut(w, ais) {
+    let steps = 0, who = -1, plays = 0;
+    while (w.phase !== "handOver" && steps++ < 5000) {
+      const p = w.turn, ai = ais[p];
+      if (p !== who) { who = p; plays = 0; }
+      if (w.phase === "draw") {
+        if (!w.draw(p, ai.chooseDraw(w, p)) && !w.draw(p, "deck") && !w.draw(p, "discard")) return;
+        plays = 0;
+        continue;
+      }
+      if (w.pending) {
+        if (w.pending.stage === "peek") w.resolvePeek(p, ai.choosePeek(w, p, w.slots[w.pending.loc]));
+        else w.moveProbe(p, ai.chooseMove(w, p, w.moveOptions()));
+        continue;
+      }
+      const a = plays++ < 30 ? ai.choosePlay(w, p) : null;
+      if (a && (a.type === "mission" ? w.useMission(p, a.id, a.action, a.arg) : w.playCards(p, a.ids, a.type))) continue;
+      w.discardCard(p, ai.chooseDiscard(w, p));
+    }
+  }
+
+  // How good the end of the hand is for p: its points against the others',
+  // with a big swing if the game is won or lost on it.
+  static outcome(w, p) {
+    if (w.phase !== "handOver" || !w.endInfo) return 0;
+    const rows = w.endInfo.rows, n = rows.length;
+    const mine = rows[p].total;
+    let sum = 0, max = -Infinity;
+    for (const r of rows) if (r.p !== p) { sum += r.total; if (r.total > max) max = r.total; }
+    let v = n === 2 ? mine - max : mine - (0.5 * sum / (n - 1) + 0.5 * max);
+    const top = Math.max(...w.scores);
+    if (top >= w.target) v += w.scores[p] === top ? 60 : -60;
+    return v;
+  }
+
+  rolloutAIs(n, p) {
+    if (!this._pool || this._pool.length !== n) this._pool = Array.from({ length: n }, () => new ArtifactAI(this.rolloutOpp || "plan"));
+    if (!this._self) this._self = new ArtifactAI(this.rolloutSelf || "plan");
+    const ais = this._pool.slice();
+    ais[p] = this._self;
+    return ais;
+  }
+
+  // The quick (non-simulating) Commander, for default choices.
+  quick() { if (!this._quick) this._quick = new ArtifactAI("plan"); return this._quick; }
+
+  uses(kind) { return !this.only || this.only.includes(kind); }
+
+  static now() { return (typeof performance !== "undefined" ? performance : Date).now(); }
+
+  // Try every option in many sampled worlds and return the best. apply(w, o)
+  // carries out option o for p in world w; alt(o), if given, is a second way
+  // to carry it out, and the option keeps whichever of the two does better.
+  // prior is the quick player's choice: the simulations only overrule it when
+  // the winner is ahead of it by more than the noise (world by world).
+  simBest(g, p, options, apply, alt = null, prior = 0) {
+    if (options.length < 2) return options[0];
+    const budget = this.budgetMs || 200, maxWorlds = this.maxWorlds || 400, minWorlds = this.minWorlds || 12;
+    const t0 = ArtifactAI.now();
+    const ais = this.rolloutAIs(g.numPlayers, p);
+    const vals = options.map(() => []), altVals = options.map(() => []);
+    const altFns = options.map(o => (alt ? alt(o) : null));
+    let k = 0;
+    while (k < maxWorlds) {
+      const base = this.cheat ? ArtifactAI.cloneGame(g) : this.determinize(g, p);
+      for (let i = 0; i < options.length; i++) {
+        const w = ArtifactAI.cloneGame(base);
+        apply(w, options[i]);
+        ArtifactAI.playOut(w, ais);
+        vals[i].push(ArtifactAI.outcome(w, p));
+        if (altFns[i]) {
+          const w2 = ArtifactAI.cloneGame(base);
+          altFns[i](w2);
+          ArtifactAI.playOut(w2, ais);
+          altVals[i].push(ArtifactAI.outcome(w2, p));
+        }
+      }
+      k++;
+      if (k >= minWorlds && ArtifactAI.now() - t0 > budget) break;
+    }
+    const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+    // each option's better continuation, world by world
+    const per = options.map((o, i) => (altFns[i] && mean(altVals[i]) > mean(vals[i]) ? altVals[i] : vals[i]));
+    let best = 0, bv = -Infinity;
+    for (let i = 0; i < options.length; i++) { const v = mean(per[i]); if (v > bv) { bv = v; best = i; } }
+    this.lastSims = k;
+    if (best !== prior && prior >= 0 && prior < options.length) {
+      const d = per[best].map((v, j) => v - per[prior][j]);
+      const m = mean(d), sd = Math.sqrt(d.reduce((x, y) => x + (y - m) * (y - m), 0) / Math.max(1, d.length - 1));
+      if (m < (this.zEdge == null ? 1 : this.zEdge) * sd / Math.sqrt(d.length)) best = prior;
+    }
+    return options[best];
+  }
+
+  // Where the quick player's choice sits in an option list (or -1).
+  static indexOf(options, choice, same) {
+    for (let i = 0; i < options.length; i++) if (same(options[i], choice)) return i;
+    return -1;
+  }
+
+  simDraw(g, p) {
+    const opts = [];
+    if (g.deck.length) opts.push("deck");
+    if (g.discard.length) opts.push("discard");
+    const prior = opts.indexOf(this.quick().chooseDraw(g, p));
+    return this.simBest(g, p, opts, (w, o) => { w.draw(p, o); }, null, prior);
+  }
+
+  // Everything p could do next this turn (null = stop and discard).
+  playOptions(g, p) {
+    const hand = g.hand(p), spare = hand.length - 1, gr = this.groups(g, p);
+    const opts = [null];
+    const mc = hand.find(c => c.kind === "mission");
+    if (mc && !g.missionUsed) {
+      if (g.canMissionAction(p, mc.id, "draw2")) opts.push({ type: "mission", id: mc.id, action: "draw2" });
+      if (g.canMissionAction(p, mc.id, "salvage")) {
+        const seen = new Set();
+        for (let i = g.discard.length - 1; i >= 0; i--) {
+          const c = g.discard[i], key = c.kind + c.loc;
+          if (seen.has(key) || c.kind === "artifact") continue;
+          seen.add(key);
+          opts.push({ type: "mission", id: mc.id, action: "salvage", arg: i });
+        }
+      }
+      if (g.canMissionAction(p, mc.id, "scan")) {
+        for (let loc = 0; loc < N_BODIES; loc++) {
+          const c = g.slots[loc], k = g.known[p][loc];
+          if (!c || (k && k.id === c.id && k.kind === "artifact")) continue;
+          opts.push({ type: "mission", id: mc.id, action: "scan", arg: loc });
+        }
+      }
+    }
+    for (let loc = 0; loc < N_BODIES; loc++) {
+      const cs = gr[loc], n = cs.length;
+      if (!n) continue;
+      if (n >= 3 && spare >= 3) {
+        opts.push({ type: "meld", ids: cs.slice(0, Math.min(n, spare)).map(c => c.id) });
+        if (n > 3 && spare > 3) opts.push({ type: "meld", ids: cs.slice(0, 3).map(c => c.id) });
+      }
+      if (g.melded[loc] && spare >= 1) {
+        const k = Math.min(n, spare);
+        opts.push({ type: "layoff", ids: cs.slice(0, k).map(c => c.id) });
+        if (k >= 2) opts.push({ type: "layoff", ids: [cs[0].id] });
+      }
+    }
+    return opts;
+  }
+
+  simPlay(g, p) {
+    const opts = this.playOptions(g, p);
+    const self = () => this.rolloutAIs(g.numPlayers, p)[p];
+    const doIt = (w, o) => {
+      if (!o) { w.discardCard(p, self().chooseDiscard(w, p)); return; }
+      if (o.type === "mission") w.useMission(p, o.id, o.action, o.arg);
+      else w.playCards(p, o.ids, o.type);
+    };
+    // Each play is judged two ways: with the rest of the turn played out,
+    // and stopping straight after it (holding everything else back).
+    const stopAfter = o => o && (w => {
+      doIt(w, o);
+      let guard = 0;
+      while (w.pending && w.phase !== "handOver" && guard++ < 10) {
+        if (w.pending.stage === "peek") w.resolvePeek(p, self().choosePeek(w, p, w.slots[w.pending.loc]));
+        else w.moveProbe(p, self().chooseMove(w, p, w.moveOptions()));
+      }
+      if (w.phase === "play" && !w.pending) w.discardCard(p, self().chooseDiscard(w, p));
+    });
+    const q = this.quick().choosePlay(g, p);
+    const key = o => (!o ? "stop" : o.type === "mission" ? "m" + o.action + (o.arg == null ? "" : o.arg) : o.type + o.ids.slice().sort().join(","));
+    let prior = ArtifactAI.indexOf(opts, q, (a, b) => key(a) === key(b));
+    if (prior < 0 && q && q.type === "mission") prior = ArtifactAI.indexOf(opts, q, (a, b) => a && a.type === "mission" && a.action === b.action);
+    if (prior < 0) prior = 0;
+    return this.simBest(g, p, opts, doIt, stopAfter, prior);
+  }
+
+  simPeek(g, p) {
+    const prior = this.quick().choosePeek(g, p, g.slots[g.pending.loc]) ? 0 : 1;
+    return this.simBest(g, p, [true, false], (w, o) => { w.resolvePeek(p, o); }, null, prior);
+  }
+
+  simMove(g, p, options) {
+    const prior = options.indexOf(this.quick().chooseMove(g, p, options));
+    return this.simBest(g, p, options, (w, o) => { w.moveProbe(p, o); }, null, prior);
+  }
+
+  simDiscard(g, p) {
+    const seen = new Map();
+    for (const c of g.hand(p)) { const key = c.kind + c.loc; if (!seen.has(key)) seen.set(key, c.id); }
+    const opts = [...seen.values()];
+    const qc = this.quick().chooseDiscard(g, p), qcard = g.hand(p).find(c => c.id === qc);
+    const prior = Math.max(0, opts.findIndex(id => { const c = g.hand(p).find(x => x.id === id); return c.kind === qcard.kind && c.loc === qcard.loc; }));
+    return this.simBest(g, p, opts, (w, id) => { w.discardCard(p, id); }, null, prior);
   }
 }
